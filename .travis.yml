@@ -33,9 +33,22 @@ matrix:
     - jdk: openjdk-ea
       env: JACOCO_SKIP=true
 
+# Travis' focal image no longer ships bellsoft-java14 in its apt repo, so the
+# openjdk14 leg installs Azul Zulu 14.0.2 itself.
+before_install:
+  - |
+    if [ "$TRAVIS_JDK_VERSION" = "openjdk14" ]; then
+      curl -fsSL https://cdn.azul.com/zulu/bin/zulu14.29.23-ca-jdk14.0.2-linux_x64.tar.gz | tar xz -C "$HOME"
+      export JAVA_HOME="$HOME/zulu14.29.23-ca-jdk14.0.2-linux_x64"
+      export PATH="$JAVA_HOME/bin:$PATH"
+      java -version
+    fi
+
 # --no-transfer-progress requires Maven 3.6.1+. Otherwise use --batch-mode
 script:
   - mvn -V --no-transfer-progress
+  # List every skipped test with its skip reason from the surefire reports.
+  - awk '/<testcase /{tc=$0} /<skipped/{print "SKIPPED " tc; print "  " $0}' target/surefire-reports/TEST-*.xml
 
 after_success:
   - mvn -V --no-transfer-progress clean cobertura:cobertura coveralls:report -Ptravis-cobertura
